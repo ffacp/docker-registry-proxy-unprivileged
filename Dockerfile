@@ -4,7 +4,8 @@
 ARG BASE_IMAGE="quay.io/agileio/nginx-proxy-connect-stable-alpine:nginx-1.18.0-alpine-3.12.1"
 # Could be "-debug"
 ARG BASE_IMAGE_SUFFIX=""
-FROM ${BASE_IMAGE}${BASE_IMAGE_SUFFIX}
+#FROM ${BASE_IMAGE}${BASE_IMAGE_SUFFIX}
+FROM quay.io/agileio/nginx-proxy-connect-stable-alpine:nginx-1.18.0-alpine-3.12.1
 
 # Link image to original repository on GitHub
 LABEL org.opencontainers.image.source https://github.com/ffsws/docker-registry-proxy-unprivileged
