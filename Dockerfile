@@ -113,6 +113,9 @@ ENV PROXY_CONNECT_READ_TIMEOUT="60s"
 ENV PROXY_CONNECT_CONNECT_TIMEOUT="60s"
 ENV PROXY_CONNECT_SEND_TIMEOUT="60s"
 
+RUN chgrp -R root /var/cache/nginx /var/run /var/log/nginx /etc/nginx/ && \
+    chmod -R 770 /var/cache/nginx /var/run /var/log/nginx /etc/nginx/
+
 # Did you want a shell? Sorry, the entrypoint never returns, because it runs nginx itself. Use 'docker exec' if you need to mess around internally.
 ENTRYPOINT ["/entrypoint.sh"]
 
