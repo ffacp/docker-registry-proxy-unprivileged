@@ -1,15 +1,41 @@
 #! /bin/bash
 
+echo "Entrypoint starting."
+
 set -Eeuo pipefail
 trap "echo TRAPed signal" HUP INT QUIT TERM
 
-#configure nginx DNS settings to match host, why must we do that nginx?
-conf="resolver $(/usr/bin/awk 'BEGIN{ORS=" "} $1=="nameserver" {print $2}' /etc/resolv.conf) ipv6=off; # Avoid ipv6 addresses for now"
-[ "$conf" = "resolver ;" ] && echo "no nameservers found" && exit 0
+# configure nginx DNS settings to match host, why must we do that nginx?
+# this leads to a world of problems. ipv6 format being different, etc.
+# below is a collection of hacks contributed over the years.
+
+echo "-- resolv.conf:"
+cat /etc/resolv.conf
+echo "-- end resolv"
+
+# Podman adds a "%3" to the end of the last resolver? I don't get it. Strip it out.
+export RESOLVERS=$(cat /etc/resolv.conf | sed -e 's/%3//g' | awk '$1 == "nameserver" {print ($2 ~ ":")? "["$2"]": $2}' ORS=' ' | sed 's/ *$//g')
+if [ "x$RESOLVERS" = "x" ]; then
+    echo "Warning: unable to determine DNS resolvers for nginx" >&2
+    exit 66
+fi
+
+echo "DEBUG, determined RESOLVERS from /etc/resolv.conf: '$RESOLVERS'"
+
+conf=""
+for ONE_RESOLVER in ${RESOLVERS}; do
+	echo "Possible resolver: $ONE_RESOLVER"
+	conf="resolver $ONE_RESOLVER; "
+done
+
+echo "Final chosen resolver: $conf"
 confpath=/etc/nginx/resolvers.conf
-if [ ! -e $confpath ] || [ "$conf" != "$(cat $confpath)" ]
+if [ ! -e $confpath ]
 then
+    echo "Using auto-determined resolver '$conf' via '$confpath'"
     echo "$conf" > $confpath
+else
+    echo "Not using resolver config, keep existing '$confpath' -- mounted by user?"
 fi
 
 # The list of SAN (Subject Alternative Names) for which we will create a TLS certificate.
@@ -117,9 +143,32 @@ EOD
     }
 EOD
 
-echo "Manifest caching config: ---"
+echo -e "\nManifest caching config: ---\n"
 cat /etc/nginx/nginx.manifest.caching.config.conf
 echo "---"
+
+if [[ "a${ALLOW_PUSH}" == "atrue" ]]; then
+    cat <<EOF > /etc/nginx/conf.d/allowed.methods.conf
+    # allow to upload big layers
+    client_max_body_size 0;
+
+    # only cache GET requests
+    proxy_cache_methods GET;
+EOF
+else
+    cat << 'EOF' > /etc/nginx/conf.d/allowed.methods.conf
+    # Block POST/PUT/DELETE. Don't use this proxy for pushing.
+    if ($request_method = POST) {
+        return 405 "POST method is not allowed";
+    }
+    if ($request_method = PUT) {
+        return 405 "PUT method is not allowed";
+    }
+    if ($request_method = DELETE) {
+        return 405  "DELETE method is not allowed";
+    }
+EOF
+fi
 
 # normally use non-debug version of nginx
 NGINX_BIN="/usr/sbin/nginx"
@@ -178,6 +227,33 @@ if [[ "a${DEBUG_NGINX}" == "atrue" ]]; then
   NGINX_BIN="/usr/sbin/nginx-debug"
 fi
 
+
+# Timeout configurations
+echo "" > /etc/nginx/nginx.timeouts.config.conf
+cat <<EOD >>/etc/nginx/nginx.timeouts.config.conf
+  # Timeouts
+
+  # ngx_http_core_module
+  keepalive_timeout  ${KEEPALIVE_TIMEOUT};
+  send_timeout ${SEND_TIMEOUT};
+  client_body_timeout ${CLIENT_BODY_TIMEOUT};
+  client_header_timeout ${CLIENT_HEADER_TIMEOUT};
+
+  # ngx_http_proxy_module
+  proxy_read_timeout ${PROXY_READ_TIMEOUT};
+  proxy_connect_timeout ${PROXY_CONNECT_TIMEOUT};
+  proxy_send_timeout ${PROXY_SEND_TIMEOUT};
+
+  # ngx_http_proxy_connect_module - external module
+  proxy_connect_read_timeout ${PROXY_CONNECT_READ_TIMEOUT};
+  proxy_connect_connect_timeout ${PROXY_CONNECT_CONNECT_TIMEOUT};
+  proxy_connect_send_timeout ${PROXY_CONNECT_SEND_TIMEOUT};
+EOD
+
+echo -e "\nTimeout configs: ---"
+cat /etc/nginx/nginx.timeouts.config.conf
+echo -e "---\n"
+
 # Upstream SSL verification.
 echo "" > /etc/nginx/docker.verify.ssl.conf
 if [[ "a${VERIFY_SSL}" == "atrue" ]]; then
@@ -193,7 +269,6 @@ EOD
 else
     echo "Upstream SSL certificate verification is DISABLED."
 fi
-
 
 echo "Testing nginx config..."
 ${NGINX_BIN} -t
