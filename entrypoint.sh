@@ -50,7 +50,7 @@ for ONEREGISTRYIN in docker.caching.proxy.internal registry-1.docker.io auth.doc
     ONEREGISTRY=$(echo ${ONEREGISTRYIN} | xargs) # Remove whitespace
     echo "Adding certificate for registry: $ONEREGISTRY"
     ALLDOMAINS="${ALLDOMAINS},DNS:${ONEREGISTRY}"
-    echo "${ONEREGISTRY} 127.0.0.1:443;" >> /etc/nginx/docker.intercept.map
+    echo "${ONEREGISTRY} 127.0.0.1:8443;" >> /etc/nginx/docker.intercept.map
 done
 
 # Clean the list and generate certificates.
@@ -94,7 +94,7 @@ if [ "$AUTH_REGISTRIES" ]; then
 fi
 
 # create default config for the caching layer to listen on 443.
-echo "        listen 443 ssl default_server;" > /etc/nginx/caching.layer.listen
+echo "        listen 8443 ssl default_server;" > /etc/nginx/caching.layer.listen
 echo "error_log  /var/log/nginx/error.log warn;" > /etc/nginx/error.log.debug.warn
 
 # Set Docker Registry cache size, by default, 32 GB ('32g')
@@ -188,7 +188,7 @@ if [[ "a${DEBUG}" == "atrue" ]]; then
           --set termlog_verbosity=error --set stream_large_bodies=128k --web-port 8081 \
           --set keep_host_header=true --set ssl_insecure=true \
           --mode reverse:https://127.0.0.1:444 --listen-host 0.0.0.0 \
-          --listen-port 443 --certs /certs/fullchain_with_key.pem  &
+          --listen-port 8443 --certs /certs/fullchain_with_key.pem  &
   echo "Access mitmweb via http://127.0.0.1:8081/ "
 fi
 
