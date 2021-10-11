@@ -14,7 +14,7 @@ LABEL org.opencontainers.image.source https://github.com/ffsws/docker-registry-p
 RUN apk add --no-cache --update bash ca-certificates-bundle coreutils openssl
 
 # If set to 1, enables building mitmproxy, which helps a lot in debugging, but is super heavy to build.
-ARG DEBUG_BUILD="1"
+ARG DEBUG_BUILD="0"
 ENV DO_DEBUG_BUILD="$DEBUG_BUILD"
 
 # Build mitmproxy via pip. This is heavy, takes minutes do build and creates a 90mb+ layer. Oh well.
@@ -95,8 +95,23 @@ ENV MANIFEST_CACHE_SECONDARY_TIME="60d"
 # In the default config, :latest and other frequently-used tags will get this value.
 ENV MANIFEST_CACHE_DEFAULT_TIME="1h"
 
-RUN chgrp -R root /var/cache/nginx /var/run /var/log/nginx /etc/nginx/ && \
-    chmod -R 770 /var/cache/nginx /var/run /var/log/nginx /etc/nginx/
+# Should we allow actions different than pull, default to false.
+ENV ALLOW_PUSH="false"
+
+# Timeouts
+# ngx_http_core_module
+ENV SEND_TIMEOUT="60s"
+ENV CLIENT_BODY_TIMEOUT="60s"
+ENV CLIENT_HEADER_TIMEOUT="60s"
+ENV KEEPALIVE_TIMEOUT="300s"
+# ngx_http_proxy_module
+ENV PROXY_READ_TIMEOUT="60s"
+ENV PROXY_CONNECT_TIMEOUT="60s"
+ENV PROXY_SEND_TIMEOUT="60s"
+# ngx_http_proxy_connect_module - external module
+ENV PROXY_CONNECT_READ_TIMEOUT="60s"
+ENV PROXY_CONNECT_CONNECT_TIMEOUT="60s"
+ENV PROXY_CONNECT_SEND_TIMEOUT="60s"
 
 # Did you want a shell? Sorry, the entrypoint never returns, because it runs nginx itself. Use 'docker exec' if you need to mess around internally.
 ENTRYPOINT ["/entrypoint.sh"]
