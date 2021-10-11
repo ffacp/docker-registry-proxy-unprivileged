@@ -1,11 +1,11 @@
 # We start from my nginx fork which includes the proxy-connect module from tEngine
 # Source is available at https://github.com/rpardini/nginx-proxy-connect-stable-alpine
 # This is already multi-arch!
-ARG BASE_IMAGE="quay.io/agileio/nginx-proxy-connect-stable-alpine:nginx-1.18.0-alpine-3.12.1"
+ARG BASE_IMAGE="quay.io/agileio/nginx-proxy-connect-stable-alpine:nginx-1.20.1-alpine-3.12.7"
 # Could be "-debug"
 ARG BASE_IMAGE_SUFFIX=""
 #FROM ${BASE_IMAGE}${BASE_IMAGE_SUFFIX}
-FROM quay.io/agileio/nginx-proxy-connect-stable-alpine:nginx-1.18.0-alpine-3.12.1
+FROM quay.io/agileio/nginx-proxy-connect-stable-alpine:nginx-1.20.1-alpine-3.12.7
 
 # Link image to original repository on GitHub
 LABEL org.opencontainers.image.source https://github.com/ffsws/docker-registry-proxy-unprivileged
